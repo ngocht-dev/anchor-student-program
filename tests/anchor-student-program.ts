@@ -2,6 +2,7 @@ import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { AnchorStudentProgram } from "../target/types/anchor_student_program";
 import { expect } from "chai";
+import { getAssociatedTokenAddress, getAccount } from "@solana/spl-token";
 
 describe("anchor-student-program", () => {
   // Configure the client to use the local cluster.
@@ -21,6 +22,11 @@ describe("anchor-student-program", () => {
     program.programId
   );
 
+  const [mint] = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("mint")],
+    program.programId
+  );
+
   it("fetch a student account", async () => {
     try {
       const account = await program.account.student.fetch(studentPda);
@@ -30,9 +36,21 @@ describe("anchor-student-program", () => {
     }
   });
 
+  // it("Initializes the reward token", async () => {
+  //   const tx = await program.methods.initializeTokenMint().rpc();
+  // });
+
   // it("Student is added`", async () => {
   //   // Add your test here.
-  //   await program.methods.addStudent(student.name, student.description).rpc();
+  //   const tokenAccount = await getAssociatedTokenAddress(
+  //     mint,
+  //     provider.wallet.publicKey
+  //   );
+
+  //   await program.methods
+  //     .addStudent(student.name, student.description)
+  //     .accounts([{ pubkey: tokenAccount, isSigner: false, isWritable: true }])
+  //     .rpc();
 
   //   const account = await program.account.student.fetch(studentPda);
   //   expect(student.name === account.name);

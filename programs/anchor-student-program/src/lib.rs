@@ -1,6 +1,8 @@
 use anchor_lang::prelude::*;
+use anchor_spl::associated_token::AssociatedToken;
+use anchor_spl::token::{mint_to, Mint, MintTo, Token, TokenAccount};
 
-declare_id!("HdBggj1AtyVj5gnM3Ru2A2dVXijFgQZQQX6i5q8xU3JN");
+declare_id!("3QoRrf23SGbLhR38hDipxXyMaPF836NJZNmNQ7JcUuMW");
 
 const MAX_NAME_LENGTH: usize = 20;
 const MAX_DESCRIPTION_LENGTH: usize = 50;
@@ -28,6 +30,22 @@ pub mod anchor_student_program {
         student.creator = ctx.accounts.initializer.key();
         student.name = name;
         student.description = description;
+
+        mint_to(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                MintTo {
+                    authority: ctx.accounts.initializer.to_account_info(),
+                    to: ctx.accounts.token_account.to_account_info(),
+                    mint: ctx.accounts.mint.to_account_info(),
+                },
+                &[&["mint".as_bytes(), &[ctx.bumps.mint]]],
+            ),
+            10 * 10 ^ 6,
+        )?;
+
+        msg!("Minted tokens");
+
         Ok(())
     }
 
@@ -50,6 +68,11 @@ pub mod anchor_student_program {
         msg!("Student for {} deleted", name);
         Ok(())
     }
+
+    pub fn initialize_token_mint(_ctx: Context<InitializeMint>) -> Result<()> {
+        msg!("Token mint initialized");
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
@@ -66,6 +89,21 @@ pub struct AddStudent<'info> {
     #[account(mut)]
     pub initializer: Signer<'info>,
     pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
+    #[account(
+        seeds = ["mint".as_bytes()],
+        bump,
+        mut
+    )]
+    pub mint: Account<'info, Mint>,
+    #[account(
+        init_if_needed,
+        payer = initializer,
+        associated_token::mint = mint,
+        associated_token::authority = initializer
+    )]
+    pub token_account: Account<'info, TokenAccount>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
 }
 
 #[derive(Accounts)]
@@ -97,6 +135,24 @@ pub struct DeleteStudent<'info> {
     pub student: Account<'info, Student>,
     #[account(mut)]
     pub initializer: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct InitializeMint<'info> {
+    #[account(
+        init,
+        seeds = ["mint".as_bytes()],
+        bump,
+        payer = initializer,
+        mint::decimals = 6,
+        mint::authority = initializer,
+    )]
+    pub mint: Account<'info, Mint>,
+    #[account(mut)]
+    pub initializer: Signer<'info>,
+    pub token_program: Program<'info, Token>,
+    pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
 }
 
